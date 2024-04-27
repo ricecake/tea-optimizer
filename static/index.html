@@ -1,0 +1,73 @@
+<html>
+
+	<head>
+		<title>Tea Tracker</title>
+		<link rel="icon" href="data:;base64,iVBORw0KGgo=" />
+		<script src="/static/index.js" type="text/javascript"></script>
+		<link rel="stylesheet" type="text/css" rel="noopener" target="_blank" href="/static/index.css" />
+	</head>
+
+	<body>
+		<table>
+			<thead>
+				<tr>
+					<th scope="col">Created</th>
+					<th scope="col">Sugar</th>
+					<th scope="col">Vanillin</th>
+					<th scope="col">Ethyl Vanillin</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<th>2024/04/25</td>
+					<td>200</td>
+					<td>15</td>
+					<td>5</td>
+				</tr>
+			</tbody>
+			<tfoot>
+				<tr>
+					<th scope="col">Average</th>
+					<td></td>
+					<td></td>
+					<td></td>
+				</tr>
+			</tfoot>
+		</table>
+		<form name="set_sugar">
+			<label>
+				Sugar (g)
+				<input name="sugar" type="number" min="0" max="500" step="0.01" required placeholder="200" />
+			</label>
+			<label>
+				Vanillin (g)
+				<input name="vanillin" type="number" min="0" max="50" step="0.01" required placeholder="10" />
+			</label>
+			<label>
+				Ethyl Vanillin (g)
+				<input name="ethyl_vanillin" type="number" min="0" max="20" step="0.01" required placeholder="5" />
+			</label>
+			<input type="submit" value="Create Sugar Blend" name="op_desc" />
+		</form>
+
+		<form name="add_cup">
+			<label>
+				Water (g)
+				<input name="water" type="number" min="0" max="500" step="0.01" required placeholder="200" />
+			</label>
+			<label>
+				Sugar (g)
+				<input name="sugar" type="number" min="0" max="500" step="0.01" required placeholder="200" />
+			</label>
+			<label>
+				Almond Milk (g)
+				<input name="almond_milk" type="number" min="0" max="500" step="0.01" required placeholder="200" />
+			</label>
+			<input type="submit" value="Add Cup" name="op_desc" />
+		</form>
+		<form name="get_suggestion">
+			<input type="submit" value="Get Brew Suggestion" name="op_desc" />
+		</form>
+	</body>
+
+</html>
