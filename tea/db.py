@@ -22,6 +22,13 @@ def init_db():
     Base.metadata.create_all(bind=engine)
 
 class SugarBlend(Base):
+    sugar: Mapped[float]
+    vanillin: Mapped[float]
+    ethyl_vanillin: Mapped[float]
+    tea_servings: Mapped[List["TeaServing"]] = relationship(
+         back_populates="sugar_blend", cascade="all, delete-orphan"
+    )
+
     __tablename__ = "sugar_blend"
     id: Mapped[int] = mapped_column(init=False, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -29,6 +36,13 @@ class SugarBlend(Base):
     )
 
 class TeaServing(Base):
+    water: Mapped[float]
+    sugar: Mapped[float]
+    almond_milk: Mapped[float]
+    quality: Mapped[float]
+    blend: Mapped[int] = mapped_column(ForeignKey("sugar_blend.id"))
+    sugar_blend: Mapped[SugarBlend] = relationship(back_populates="tea_servings")
+
     __tablename__ = "tea_serving"
     id: Mapped[int] = mapped_column(init=False, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(

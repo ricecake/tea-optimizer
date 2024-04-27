@@ -1,4 +1,4 @@
-from lib.handlers import app
-from lib.db import init_db
+from tea.handlers import app
+from tea.db import init_db
 
 init_db()

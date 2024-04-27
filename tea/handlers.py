@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from lib.db import db_session
+from tea.db import db_session
 
 app = Flask("TeaTime")
 
