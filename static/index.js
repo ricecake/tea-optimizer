@@ -1,8 +1,11 @@
 const formToJson = (formElement) => {
 	var inputElements = formElement.getElementsByTagName("input");
 	var jsonObject = {};
-	for(var i = 0; i < inputElements.length; i++){
+	for (var i = 0; i < inputElements.length; i++) {
 		var inputElement = inputElements[i];
+		if (inputElement.type === "submit") {
+			continue;
+		}
 		jsonObject[inputElement.name] = inputElement.value;
 
 	}
@@ -29,7 +32,7 @@ window.onload = (event) => {
 			referrerPolicy: "no-referrer",
 			body: json,
 		});
-		
+
 		console.log(await response.json())
 	});
 
