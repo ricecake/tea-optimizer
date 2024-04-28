@@ -33,7 +33,8 @@ window.onload = (event) => {
 			body: json,
 		});
 
-		console.log(await response.json())
+		let data = await response.json();
+		
 	});
 
 	console.log("page is fully loaded");

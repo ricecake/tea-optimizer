@@ -3,4 +3,5 @@ from tea.db import init_db
 
 init_db()
 
-app.run()
+if __name__ == "__main__":
+    app.run()
