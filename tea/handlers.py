@@ -74,6 +74,11 @@ def get_suggestion():
     result = logic.dispatch_action(logic.Action.get_suggestion)
     return jsonify(result)
 
+@app.post("/list_suggestions")
+def list_suggestions():
+    result = logic.dispatch_action(logic.Action.list_suggestions)
+    return jsonify(result)
+
 @app.post("/get_best_guess")
 def get_best_guess():
     result = logic.dispatch_action(logic.Action.get_best_guess)

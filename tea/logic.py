@@ -1,6 +1,7 @@
 import enum
-from tea.db import db_session, SugarBlend, TeaServing
+from tea.db import db_session, SugarBlend, TeaServing, TrialSuggestion
 from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert
 
 from bayes_opt import BayesianOptimization
 from bayes_opt import UtilityFunction
@@ -14,6 +15,7 @@ Action = enum.Enum('Action', [
     'get_sugar',
     'add_cup',
     'get_suggestion',
+    'list_suggestions',
     'list_cups',
     'update_cup',
     'get_best_guess'
@@ -21,8 +23,6 @@ Action = enum.Enum('Action', [
 
 
 def dispatch_action(action, data=None) -> dict:
-    print(action, data)
-
     result = None
     match action:
         case Action.set_sugar:
@@ -39,8 +39,8 @@ def dispatch_action(action, data=None) -> dict:
             result = do_update_cup(data)
         case Action.get_best_guess:
             result = do_get_best_guess(data)
-
-    print(result)
+        case Action.list_suggestions:
+            result = do_list_suggestions(data)
 
     return dict(result=result)
 
@@ -95,6 +95,9 @@ def do_get_best_guess(data) -> dict:
             1).order_by(SugarBlend.created_at.desc())
         blend = session.scalar(get_blend)
 
+        if not blend:
+            return
+
         optimizer = get_optimizer(blend)
 
         stmnt = select(TeaServing).where(TeaServing.quality != None)
@@ -102,7 +105,7 @@ def do_get_best_guess(data) -> dict:
             scaled_blend = blend.scaled_composition(cup.sugar)
             constraint = optimizer.constraint
 
-            params=dict(
+            params = dict(
                 water=cup.water,
                 almond_milk=cup.almond_milk,
                 sugar=scaled_blend.sugar,
@@ -118,6 +121,9 @@ def do_get_best_guess(data) -> dict:
 
         max = optimizer.max
 
+        if not max:
+            return
+
         max["params"] = project_mixture_to_blend(max["params"], blend)
 
         return max
@@ -129,6 +135,9 @@ def do_get_suggestion(data) -> dict:
             1).order_by(SugarBlend.created_at.desc())
         blend = session.scalar(get_blend)
 
+        if not blend:
+            return
+
         optimizer = get_optimizer(blend)
 
         stmnt = select(TeaServing).where(TeaServing.quality != None)
@@ -136,7 +145,7 @@ def do_get_suggestion(data) -> dict:
             scaled_blend = blend.scaled_composition(cup.sugar)
             constraint = optimizer.constraint
 
-            params=dict(
+            params = dict(
                 water=cup.water,
                 almond_milk=cup.almond_milk,
                 sugar=scaled_blend.sugar,
@@ -151,7 +160,20 @@ def do_get_suggestion(data) -> dict:
             )
 
         mixture = optimizer.suggest(utility)
-        return project_mixture_to_blend(mixture, blend)
+        suggestion = project_mixture_to_blend(mixture, blend)
+
+        trial = TrialSuggestion(blend=blend.id, **suggestion)
+        trial_dict = trial.as_dict()
+        del trial_dict["created_at"]
+        session.execute(insert(TrialSuggestion).values(trial_dict).on_conflict_do_nothing())
+        session.commit()
+
+        return suggestion
+
+def do_list_suggestions(data) -> dict:
+    with db_session() as session:
+        stmnt = select(TrialSuggestion).order_by(TrialSuggestion.created_at.asc())
+        return session.scalars(stmnt).all()
 
 
 def get_optimizer(blend: SugarBlend) -> BayesianOptimization:
@@ -171,7 +193,7 @@ def get_optimizer(blend: SugarBlend) -> BayesianOptimization:
             'ethyl_vanillin': (0, 2),
             'almond_milk': (0, 200),
         },
-        verbose=2,
+        verbose=0,
         random_state=1,
         allow_duplicate_points=True,
     )
@@ -188,8 +210,6 @@ def blend_from_mixture(mixture) -> SugarBlend:
 def project_mixture_to_blend(mixture: dict, blend: SugarBlend) -> dict:
     desired_blend = blend_from_mixture(mixture)
     closest_blend = blend.nearest_blend(desired_blend)
-    print(mixture, blend, desired_blend, closest_blend)
-    print(closest_blend - desired_blend)
     return dict(
         water=mixture["water"],
         almond_milk=mixture["almond_milk"],

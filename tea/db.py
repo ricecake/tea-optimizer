@@ -12,11 +12,12 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker, declarative_base
+from sqlalchemy.schema import UniqueConstraint
 
 import tea.math
 import numpy as np
 
-engine = create_engine('sqlite:///test.db', echo=True)
+engine = create_engine('sqlite:///test.db', echo=False)
 db_session = scoped_session(sessionmaker(autocommit=False,
                                          autoflush=False,
                                          expire_on_commit=False,
@@ -38,7 +39,6 @@ class SugarBlend(Base):
     sugar: Mapped[float]
     vanillin: Mapped[float]
     ethyl_vanillin: Mapped[float]
-
     __tablename__ = "sugar_blend"
     id: Mapped[int] = mapped_column(
         init=False, primary_key=True, autoincrement=True)
@@ -79,7 +79,6 @@ class TeaServing(Base):
     sugar: Mapped[float]
     almond_milk: Mapped[float]
     blend: Mapped[int] = mapped_column(ForeignKey("sugar_blend.id"))
-
     quality: Mapped[float] = mapped_column(nullable=True, default=None)
     __tablename__ = "tea_serving"
     id: Mapped[int] = mapped_column(init=False, primary_key=True)
@@ -88,9 +87,14 @@ class TeaServing(Base):
     )
 
 
-class TrialSuggestions(Base):
+class TrialSuggestion(Base):
+    water: Mapped[float]
+    sugar: Mapped[float]
+    almond_milk: Mapped[float]
+    blend: Mapped[int] = mapped_column(ForeignKey("sugar_blend.id"))
     __tablename__ = "trial_suggestion"
     id: Mapped[int] = mapped_column(init=False, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(
-        insert_default=func.utc_timestamp(), default=None
+        DateTime(timezone=True), server_default=func.now(), default=None,
     )
+    __table_args__ = (UniqueConstraint("water", "sugar", "almond_milk", "blend", name="mixture_idx"), )

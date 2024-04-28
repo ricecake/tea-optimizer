@@ -69,15 +69,34 @@ const loadTea = async () => {
 
 };
 
+const loadSuggestions = async () => {
+	const response = await doFetch('/list_suggestions', '{}');
+	const data = await response.json();
+	let table = document.getElementById("tea-suggestions-table");
+	table.innerHTML = '';
+
+	data.result.forEach(({ id, created_at, water, blend, sugar, almond_milk }) => {
+		table.innerHTML += `<tr><th>${id}</th><th>${created_at}</th><td>${water}</td><th>${blend}</th><td>${sugar}</td><td>${almond_milk}</td></tr>`;
+	});
+
+};
+
 const loadSuggestion = async () => {
 	const response = await doFetch('/get_suggestion');
 	const data = await response.json();
+	if (!data.result) {
+		return
+	}
+
 	displaySuggestion(data);
 };
 
 const loadBestGuess = async () => {
 	const response = await doFetch('/get_best_guess');
 	const data = await response.json();
+	if (!data.result) {
+		return
+	}
 	displayBestGuess(data);
 };
 
@@ -129,13 +148,15 @@ window.onload = async (event) => {
 				break;
 			case 'get_suggestion':
 				await displaySuggestion(data);
+				await loadSuggestions();
 				break;
-			case 'get_suggestion':
+			case 'get_best_guess':
 				await displayBestGuess(data);
 				break;
 		}
 	});
 
+	await loadSuggestions();
 	await loadSugar();
 	await loadTea();
 	await loadSuggestion();
