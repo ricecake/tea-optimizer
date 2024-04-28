@@ -2,6 +2,11 @@ import enum
 from tea.db import db_session, SugarBlend, TeaServing
 from sqlalchemy import select
 
+from bayes_opt import BayesianOptimization
+from bayes_opt import UtilityFunction
+
+utility = UtilityFunction(kind="ucb", kappa=2.5, xi=0.0)
+
 Action = enum.Enum('Action', [
     'set_sugar',
     'get_sugar',
@@ -68,8 +73,39 @@ def do_list_cups(data) -> dict:
 
 
 def do_update_cup(data) -> dict:
-    return {}
+    with db_session() as session:
+        stmnt = select(TeaServing).where(
+            TeaServing.id == data.get('id')).limit(1)
+
+        cup = session.scalar(stmnt)
+        cup.quality = data.get('quality')
+        session.commit()
+
+        return cup
 
 
 def do_get_suggestion(data) -> dict:
-    return {}
+    optimizer = BayesianOptimization(
+        f=None,
+        pbounds={
+            'water': (400, 500),
+            'sugar': (0, 20),
+            'almond_milk': (0, 200),
+        },
+        verbose=2,
+        random_state=1,
+    )
+
+    with db_session() as session:
+        stmnt = select(TeaServing).where(TeaServing.quality != None)
+        for cup in session.scalars(stmnt):
+            optimizer.register(
+                params=dict(
+                    water=cup.water,
+                    sugar=cup.sugar,
+                    almond_milk=cup.almond_milk,
+                ),
+                target=cup.quality,
+            )
+
+        return optimizer.suggest(utility)
