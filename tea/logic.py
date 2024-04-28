@@ -1,5 +1,6 @@
 import enum
 from tea.db import db_session, SugarBlend, TeaServing
+from sqlalchemy import select
 
 Action = enum.Enum('Action', [
     'set_sugar',
@@ -11,7 +12,7 @@ Action = enum.Enum('Action', [
 ])
 
 
-def dispatch_action(action, data) -> dict:
+def dispatch_action(action, data=None) -> dict:
     print(action, data)
 
     result = None
@@ -44,20 +45,31 @@ def do_set_sugar(data) -> SugarBlend:
 
 
 def do_get_sugar(data) -> dict:
-    return {}
+    with db_session() as session:
+        stmnt = select(SugarBlend).order_by(SugarBlend.created_at.asc())
+        return session.scalars(stmnt).all()
 
 
 def do_add_cup(data) -> dict:
+    with db_session() as session:
+        stmnt = select(SugarBlend).limit(
+            1).order_by(SugarBlend.created_at.desc())
+        blend_id = session.scalar(stmnt).id
+        cup = TeaServing(blend=blend_id, **data)
+        session.add(cup)
+        session.commit()
+        return cup
+
+
+def do_list_cups(data) -> dict:
+    with db_session() as session:
+        stmnt = select(TeaServing).order_by(TeaServing.created_at.asc())
+        return session.scalars(stmnt).all()
+
+
+def do_update_cup(data) -> dict:
     return {}
 
 
 def do_get_suggestion(data) -> dict:
-    return {}
-
-
-def do_list_cups(data) -> dict:
-    return {}
-
-
-def do_update_cup(data) -> dict:
     return {}

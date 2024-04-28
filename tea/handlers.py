@@ -5,19 +5,22 @@ import tea.logic as logic
 from flask.json.provider import DefaultJSONProvider
 from datetime import datetime
 
+
 def datetime_to_string(obj):
     for key, value in obj.items():
         if isinstance(value, datetime):
             obj[key] = value.isoformat()
-    
+
     return obj
+
 
 class ModelProvider(DefaultJSONProvider):
     def default(self, obj):
         if isinstance(obj, Base):
             return datetime_to_string(obj.as_dict())
         else:
-            return super().default(self, obj)
+            return super().default(obj)
+
 
 app = Flask("TeaTime")
 app.json = ModelProvider(app)
@@ -42,8 +45,7 @@ def set_sugar():
 
 @app.post("/get_sugar")
 def get_sugar():
-    content = request.json
-    result = logic.dispatch_action(logic.Action.get_sugar, content)
+    result = logic.dispatch_action(logic.Action.get_sugar)
     return jsonify(result)
 
 
@@ -51,13 +53,6 @@ def get_sugar():
 def add_cupp():
     content = request.json
     result = logic.dispatch_action(logic.Action.add_cup, content)
-    return jsonify(result)
-
-
-@app.post("/get_suggestion")
-def get_suggestion():
-    content = request.json
-    result = logic.dispatch_action(logic.Action.get_suggestion, content)
     return jsonify(result)
 
 
@@ -72,4 +67,11 @@ def list_cups():
 def update_cup():
     content = request.json
     result = logic.dispatch_action(logic.Action.update_cup, content)
+    return jsonify(result)
+
+
+@app.post("/get_suggestion")
+def get_suggestion():
+    content = request.json
+    result = logic.dispatch_action(logic.Action.get_suggestion, content)
     return jsonify(result)

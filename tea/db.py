@@ -48,14 +48,14 @@ class TeaServing(Base):
     water: Mapped[float]
     sugar: Mapped[float]
     almond_milk: Mapped[float]
-    quality: Mapped[float]
     blend: Mapped[int] = mapped_column(ForeignKey("sugar_blend.id"))
     # sugar_blend: Mapped[SugarBlend] = relationship(back_populates="tea_servings")
 
+    quality: Mapped[float] = mapped_column(nullable=True, default=None)
     __tablename__ = "tea_serving"
     id: Mapped[int] = mapped_column(init=False, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(
-        insert_default=func.utc_timestamp(), default=None
+        DateTime(timezone=True), server_default=func.now(), default=None,
     )
 
 
