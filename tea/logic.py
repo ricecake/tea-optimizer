@@ -5,7 +5,7 @@ from sqlalchemy import select
 from bayes_opt import BayesianOptimization
 from bayes_opt import UtilityFunction
 
-utility = UtilityFunction(kind="ucb", kappa=2.5, xi=0.0)
+utility = UtilityFunction(kind="ucb", kappa=10, xi=0.0)
 
 Action = enum.Enum('Action', [
     'set_sugar',
@@ -14,6 +14,7 @@ Action = enum.Enum('Action', [
     'get_suggestion',
     'list_cups',
     'update_cup',
+    'get_best_guess'
 ])
 
 
@@ -34,6 +35,8 @@ def dispatch_action(action, data=None) -> dict:
             result = do_list_cups(data)
         case Action.update_cup:
             result = do_update_cup(data)
+        case Action.get_best_guess:
+            result = do_get_best_guess(data)
 
     print(result)
 
@@ -84,17 +87,26 @@ def do_update_cup(data) -> dict:
         return cup
 
 
+def do_get_best_guess(data) -> dict:
+    optimizer = get_optimizer(None)
+
+    with db_session() as session:
+        stmnt = select(TeaServing).where(TeaServing.quality != None)
+        for cup in session.scalars(stmnt):
+            optimizer.register(
+                params=dict(
+                    water=cup.water,
+                    sugar=cup.sugar,
+                    almond_milk=cup.almond_milk,
+                ),
+                target=cup.quality,
+            )
+
+        return optimizer.max
+
+
 def do_get_suggestion(data) -> dict:
-    optimizer = BayesianOptimization(
-        f=None,
-        pbounds={
-            'water': (400, 500),
-            'sugar': (0, 20),
-            'almond_milk': (0, 200),
-        },
-        verbose=2,
-        random_state=1,
-    )
+    optimizer = get_optimizer(None)
 
     with db_session() as session:
         stmnt = select(TeaServing).where(TeaServing.quality != None)
@@ -109,3 +121,17 @@ def do_get_suggestion(data) -> dict:
             )
 
         return optimizer.suggest(utility)
+
+
+def get_optimizer(blend: SugarBlend) -> BayesianOptimization:
+    return BayesianOptimization(
+        f=None,
+        pbounds={
+            'water': (400, 500),
+            'sugar': (0, 20),
+            'almond_milk': (0, 200),
+        },
+        verbose=2,
+        random_state=1,
+        allow_duplicate_points=True,
+    )

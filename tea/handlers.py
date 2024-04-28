@@ -58,8 +58,7 @@ def add_cupp():
 
 @app.post("/list_cups")
 def list_cups():
-    content = request.json
-    result = logic.dispatch_action(logic.Action.list_cups, content)
+    result = logic.dispatch_action(logic.Action.list_cups)
     return jsonify(result)
 
 
@@ -72,6 +71,10 @@ def update_cup():
 
 @app.post("/get_suggestion")
 def get_suggestion():
-    content = request.json
-    result = logic.dispatch_action(logic.Action.get_suggestion, content)
+    result = logic.dispatch_action(logic.Action.get_suggestion)
+    return jsonify(result)
+
+@app.post("/get_best_guess")
+def get_best_guess():
+    result = logic.dispatch_action(logic.Action.get_best_guess)
     return jsonify(result)

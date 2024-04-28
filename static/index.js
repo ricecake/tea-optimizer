@@ -69,6 +69,43 @@ const loadTea = async () => {
 
 };
 
+const loadSuggestion = async () => {
+	const response = await doFetch('/get_suggestion');
+	const data = await response.json();
+	displaySuggestion(data);
+};
+
+const loadBestGuess = async () => {
+	const response = await doFetch('/get_best_guess');
+	const data = await response.json();
+	displayBestGuess(data);
+};
+
+const displaySuggestion = (data) => {
+	let form = document.getElementById("cup-balance-suggestion");
+
+	for (const el of form.getElementsByTagName('input')) {
+		if (el.name) {
+			el.value = data.result[el.name];
+		}
+	}
+};
+
+const displayBestGuess = (data) => {
+	let form = document.getElementById("cup-balance-recommendation");
+
+	for (const el of form.getElementsByTagName('input')) {
+		if (el.name) {
+			if (el.name === 'quality') {
+				el.value = data.result.target;
+			}
+			else {
+				el.value = data.result.params[el.name];
+			}
+		}
+	}
+};
+
 window.onload = async (event) => {
 	window.addEventListener('submit', async (event) => {
 		event.preventDefault();
@@ -85,14 +122,24 @@ window.onload = async (event) => {
 				await loadSugar();
 				break;
 			case 'update_cup':
+				await loadSuggestion();
+				await loadBestGuess();
 			case 'add_cup':
 				await loadTea();
+				break;
+			case 'get_suggestion':
+				await displaySuggestion(data);
+				break;
+			case 'get_suggestion':
+				await displayBestGuess(data);
 				break;
 		}
 	});
 
 	await loadSugar();
 	await loadTea();
+	await loadSuggestion();
+	await loadBestGuess();
 
 	console.log("page is fully loaded");
 };
