@@ -4,6 +4,8 @@ from sqlalchemy import select
 
 from bayes_opt import BayesianOptimization
 from bayes_opt import UtilityFunction
+from scipy.optimize import NonlinearConstraint
+import numpy as np
 
 utility = UtilityFunction(kind="ucb", kappa=10, xi=0.0)
 
@@ -88,50 +90,108 @@ def do_update_cup(data) -> dict:
 
 
 def do_get_best_guess(data) -> dict:
-    optimizer = get_optimizer(None)
-
     with db_session() as session:
+        get_blend = select(SugarBlend).limit(
+            1).order_by(SugarBlend.created_at.desc())
+        blend = session.scalar(get_blend)
+
+        optimizer = get_optimizer(blend)
+
         stmnt = select(TeaServing).where(TeaServing.quality != None)
         for cup in session.scalars(stmnt):
-            optimizer.register(
-                params=dict(
-                    water=cup.water,
-                    sugar=cup.sugar,
-                    almond_milk=cup.almond_milk,
-                ),
-                target=cup.quality,
+            scaled_blend = blend.scaled_composition(cup.sugar)
+            constraint = optimizer.constraint
+
+            params=dict(
+                water=cup.water,
+                almond_milk=cup.almond_milk,
+                sugar=scaled_blend.sugar,
+                vanillin=scaled_blend.vanillin,
+                ethyl_vanillin=scaled_blend.ethyl_vanillin,
             )
 
-        return optimizer.max
+            optimizer.register(
+                params=params,
+                target=cup.quality,
+                constraint_value=constraint.fun(**params)
+            )
+
+        max = optimizer.max
+
+        max["params"] = project_mixture_to_blend(max["params"], blend)
+
+        return max
 
 
 def do_get_suggestion(data) -> dict:
-    optimizer = get_optimizer(None)
-
     with db_session() as session:
+        get_blend = select(SugarBlend).limit(
+            1).order_by(SugarBlend.created_at.desc())
+        blend = session.scalar(get_blend)
+
+        optimizer = get_optimizer(blend)
+
         stmnt = select(TeaServing).where(TeaServing.quality != None)
         for cup in session.scalars(stmnt):
-            optimizer.register(
-                params=dict(
-                    water=cup.water,
-                    sugar=cup.sugar,
-                    almond_milk=cup.almond_milk,
-                ),
-                target=cup.quality,
+            scaled_blend = blend.scaled_composition(cup.sugar)
+            constraint = optimizer.constraint
+
+            params=dict(
+                water=cup.water,
+                almond_milk=cup.almond_milk,
+                sugar=scaled_blend.sugar,
+                vanillin=scaled_blend.vanillin,
+                ethyl_vanillin=scaled_blend.ethyl_vanillin,
             )
 
-        return optimizer.suggest(utility)
+            optimizer.register(
+                params=params,
+                target=cup.quality,
+                constraint_value=constraint.fun(**params)
+            )
+
+        mixture = optimizer.suggest(utility)
+        return project_mixture_to_blend(mixture, blend)
 
 
 def get_optimizer(blend: SugarBlend) -> BayesianOptimization:
+    def constraint_func(**kwargs):
+        desired_blend = blend_from_mixture(kwargs)
+        closest_blend = blend.nearest_blend(desired_blend)
+
+        return closest_blend - desired_blend
+
     return BayesianOptimization(
         f=None,
+        constraint=NonlinearConstraint(constraint_func, -np.inf, 0.1),
         pbounds={
             'water': (400, 500),
             'sugar': (0, 20),
+            'vanillin': (0, 5),
+            'ethyl_vanillin': (0, 2),
             'almond_milk': (0, 200),
         },
         verbose=2,
         random_state=1,
         allow_duplicate_points=True,
+    )
+
+
+def blend_from_mixture(mixture) -> SugarBlend:
+    return SugarBlend(
+        sugar=mixture["sugar"],
+        vanillin=mixture["vanillin"],
+        ethyl_vanillin=mixture["ethyl_vanillin"],
+    )
+
+
+def project_mixture_to_blend(mixture: dict, blend: SugarBlend) -> dict:
+    desired_blend = blend_from_mixture(mixture)
+    closest_blend = blend.nearest_blend(desired_blend)
+    print(mixture, blend, desired_blend, closest_blend)
+    print(closest_blend - desired_blend)
+    return dict(
+        water=mixture["water"],
+        almond_milk=mixture["almond_milk"],
+        sugar=closest_blend.gross_weight,
     )

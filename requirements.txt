@@ -1,4 +1,4 @@
 flask
 sqlalchemy
 Flask-SQLAlchemy
-bayesian-optimization
+bayesian-optimization @ git+https://github.com/bayesian-optimization/BayesianOptimization.git
