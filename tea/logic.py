@@ -18,7 +18,8 @@ Action = enum.Enum('Action', [
     'list_suggestions',
     'list_cups',
     'update_cup',
-    'get_best_guess'
+    'get_best_guess',
+    'get_sugar_suggestion',
 ])
 
 
@@ -41,6 +42,8 @@ def dispatch_action(action, data=None) -> dict:
             result = do_get_best_guess(data)
         case Action.list_suggestions:
             result = do_list_suggestions(data)
+        case Action.get_sugar_suggestion:
+            result = do_get_sugar_suggestion(data)
 
     return dict(result=result)
 
@@ -98,26 +101,7 @@ def do_get_best_guess(data) -> dict:
         if not blend:
             return
 
-        optimizer = get_optimizer(blend)
-
-        stmnt = select(TeaServing).where(TeaServing.quality != None)
-        for cup in session.scalars(stmnt):
-            scaled_blend = blend.scaled_composition(cup.sugar)
-            constraint = optimizer.constraint
-
-            params = dict(
-                water=cup.water,
-                almond_milk=cup.almond_milk,
-                sugar=scaled_blend.sugar,
-                vanillin=scaled_blend.vanillin,
-                ethyl_vanillin=scaled_blend.ethyl_vanillin,
-            )
-
-            optimizer.register(
-                params=params,
-                target=cup.quality,
-                constraint_value=constraint.fun(**params)
-            )
+        optimizer = get_optimizer(session, blend)
 
         max = optimizer.max
 
@@ -138,26 +122,7 @@ def do_get_suggestion(data) -> dict:
         if not blend:
             return
 
-        optimizer = get_optimizer(blend)
-
-        stmnt = select(TeaServing).where(TeaServing.quality != None)
-        for cup in session.scalars(stmnt):
-            scaled_blend = blend.scaled_composition(cup.sugar)
-            constraint = optimizer.constraint
-
-            params = dict(
-                water=cup.water,
-                almond_milk=cup.almond_milk,
-                sugar=scaled_blend.sugar,
-                vanillin=scaled_blend.vanillin,
-                ethyl_vanillin=scaled_blend.ethyl_vanillin,
-            )
-
-            optimizer.register(
-                params=params,
-                target=cup.quality,
-                constraint_value=constraint.fun(**params)
-            )
+        optimizer = get_optimizer(session, blend)
 
         mixture = optimizer.suggest(utility)
         suggestion = project_mixture_to_blend(mixture, blend)
@@ -165,38 +130,82 @@ def do_get_suggestion(data) -> dict:
         trial = TrialSuggestion(blend=blend.id, **suggestion)
         trial_dict = trial.as_dict()
         del trial_dict["created_at"]
-        session.execute(insert(TrialSuggestion).values(trial_dict).on_conflict_do_nothing())
+        session.execute(insert(TrialSuggestion).values(
+            trial_dict).on_conflict_do_nothing())
         session.commit()
 
         return suggestion
 
+
+def do_get_sugar_suggestion(data):
+    with db_session() as session:
+        optimizer = get_optimizer(session)
+
+        mixture = optimizer.suggest(utility)
+        blend = blend_from_mixture(mixture)
+        return blend.scaled_composition(200)
+
+
 def do_list_suggestions(data) -> dict:
     with db_session() as session:
-        stmnt = select(TrialSuggestion).order_by(TrialSuggestion.created_at.asc())
+        stmnt = select(TrialSuggestion).order_by(
+            TrialSuggestion.created_at.asc())
         return session.scalars(stmnt).all()
 
 
-def get_optimizer(blend: SugarBlend) -> BayesianOptimization:
+def get_optimizer(session, blend: SugarBlend = None) -> BayesianOptimization:
     def constraint_func(**kwargs):
         desired_blend = blend_from_mixture(kwargs)
         closest_blend = blend.nearest_blend(desired_blend)
 
         return closest_blend - desired_blend
 
-    return BayesianOptimization(
+    constraint = None
+    if blend is not None:
+        constraint = NonlinearConstraint(constraint_func, -np.inf, 0.1)
+
+    optimizer = BayesianOptimization(
         f=None,
-        constraint=NonlinearConstraint(constraint_func, -np.inf, 0.1),
+        constraint=constraint,
         pbounds={
             'water': (400, 500),
             'sugar': (0, 20),
-            'vanillin': (0, 5),
-            'ethyl_vanillin': (0, 2),
+            'vanillin': (0, 5), # 3?
+            'ethyl_vanillin': (0, 2), # 1?
             'almond_milk': (0, 200),
         },
         verbose=0,
         random_state=1,
         allow_duplicate_points=True,
     )
+
+    stmnt = select(TeaServing).where(TeaServing.quality != None)
+    for cup in session.scalars(stmnt):
+        get_brew_blend = select(SugarBlend).limit(
+            1).order_by(SugarBlend.created_at.desc())
+        brew_blend = session.scalar(get_brew_blend)
+
+        scaled_blend = brew_blend.scaled_composition(cup.sugar)
+
+        params = dict(
+            water=cup.water,
+            almond_milk=cup.almond_milk,
+            sugar=scaled_blend.sugar,
+            vanillin=scaled_blend.vanillin,
+            ethyl_vanillin=scaled_blend.ethyl_vanillin,
+        )
+
+        constraint_value = None
+        if blend is not None:
+            constraint_value = constraint_func(**params)
+
+        optimizer.register(
+            params=params,
+            target=cup.quality,
+            constraint_value=constraint_value,
+        )
+
+    return optimizer
 
 
 def blend_from_mixture(mixture) -> SugarBlend:

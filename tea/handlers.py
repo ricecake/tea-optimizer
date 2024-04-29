@@ -3,13 +3,13 @@ from tea.db import db_session, Base
 import tea.logic as logic
 
 from flask.json.provider import DefaultJSONProvider
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def datetime_to_string(obj):
     for key, value in obj.items():
         if isinstance(value, datetime):
-            obj[key] = value.isoformat()
+            obj[key] = value.replace(tzinfo=timezone.utc).isoformat()
 
     return obj
 
@@ -83,3 +83,9 @@ def list_suggestions():
 def get_best_guess():
     result = logic.dispatch_action(logic.Action.get_best_guess)
     return jsonify(result)
+
+@app.post('/get_sugar_suggestion')
+def get_sugar_suggestion():
+    result = logic.dispatch_action(logic.Action.get_sugar_suggestion)
+    return jsonify(result)
+

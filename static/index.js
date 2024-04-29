@@ -32,6 +32,9 @@ const doFetch = (url, body = null) => {
 	return fetch(url, options);
 };
 
+const ff = (number) => Number.parseFloat(number).toFixed(2);
+const fd = (date) => (new Date(date)).toLocaleString();
+
 const loadSugar = async () => {
 	const response = await doFetch('/get_sugar', '{}');
 	const data = await response.json();
@@ -39,7 +42,7 @@ const loadSugar = async () => {
 	table.innerHTML = '';
 
 	data.result.forEach(({ id, created_at, ethyl_vanillin, sugar, vanillin }) => {
-		table.innerHTML += `<tr><th>${id}</th><th>${created_at}</th><td>${sugar}</td><td>${vanillin}</td><td>${ethyl_vanillin}</td></tr>`;
+		table.innerHTML += `<tr><th>${id}</th><th>${fd(created_at)}</th><td>${ff(sugar)}</td><td>${ff(vanillin)}</td><td>${ff(ethyl_vanillin)}</td></tr>`;
 	});
 
 };
@@ -64,7 +67,7 @@ const loadTea = async () => {
 			button.value = `Rank cup #${id}`;
 		}
 
-		table.innerHTML += `<tr><th>${id}</th><th>${created_at}</th><td>${water}</td><th>${blend}</th><td>${sugar}</td><td>${almond_milk}</td><th>${quality}</th></tr>`;
+		table.innerHTML += `<tr><th>${id}</th><th>${fd(created_at)}</th><td>${ff(water)}</td><th>${blend}</th><td>${ff(sugar)}</td><td>${ff(almond_milk)}</td><th>${quality}</th></tr>`;
 	});
 
 };
@@ -76,7 +79,7 @@ const loadSuggestions = async () => {
 	table.innerHTML = '';
 
 	data.result.forEach(({ id, created_at, water, blend, sugar, almond_milk }) => {
-		table.innerHTML += `<tr><th>${id}</th><th>${created_at}</th><td>${water}</td><th>${blend}</th><td>${sugar}</td><td>${almond_milk}</td></tr>`;
+		table.innerHTML += `<tr><th>${id}</th><th>${fd(created_at)}</th><td>${ff(water)}</td><th>${blend}</th><td>${ff(sugar)}</td><td>${ff(almond_milk)}</td></tr>`;
 	});
 
 };
@@ -100,12 +103,32 @@ const loadBestGuess = async () => {
 	displayBestGuess(data);
 };
 
+const loadSugarSuggestion = async () => {
+	const response = await doFetch('/get_sugar_suggestion');
+	const data = await response.json();
+	if (!data.result) {
+		return
+	}
+
+	displaySugarSuggestion(data);
+};
+
+const displaySugarSuggestion = (data) => {
+	let form = document.getElementById("sugar-blend-suggestion");
+
+	for (const el of form.getElementsByTagName('input')) {
+		if (el.name) {
+			el.value = ff(data.result[el.name]);
+		}
+	}
+};
+
 const displaySuggestion = (data) => {
 	let form = document.getElementById("cup-balance-suggestion");
 
 	for (const el of form.getElementsByTagName('input')) {
 		if (el.name) {
-			el.value = data.result[el.name];
+			el.value = ff(data.result[el.name]);
 		}
 	}
 };
@@ -119,7 +142,7 @@ const displayBestGuess = (data) => {
 				el.value = data.result.target;
 			}
 			else {
-				el.value = data.result.params[el.name];
+				el.value = ff(data.result.params[el.name]);
 			}
 		}
 	}
@@ -143,6 +166,8 @@ window.onload = async (event) => {
 			case 'update_cup':
 				await loadSuggestion();
 				await loadBestGuess();
+				await loadTea();
+				break;
 			case 'add_cup':
 				await loadTea();
 				break;
@@ -153,6 +178,9 @@ window.onload = async (event) => {
 			case 'get_best_guess':
 				await displayBestGuess(data);
 				break;
+			case 'get_sugar_suggestion':
+				await displaySugarSuggestion(data);
+				break;
 		}
 	});
 
@@ -161,6 +189,7 @@ window.onload = async (event) => {
 	await loadTea();
 	await loadSuggestion();
 	await loadBestGuess();
+	await loadSugarSuggestion();
 
 	console.log("page is fully loaded");
 };

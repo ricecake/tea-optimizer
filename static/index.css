@@ -40,9 +40,45 @@ tfoot td {
 }
 
 tbody>tr:last-child {
-	background: #c77;
+	background: rgb(135, 202, 244);
 }
 
 td:after {
 	content: " (g)";
+}
+
+input:not([type="submit"]) {
+	width: 6em;
+	text-align: right;
+}
+
+form {
+	display: flex;
+	/* justify-content: space-around;
+	max-width: 25vw; */
+	margin: 10 5 5 10;
+}
+
+label {
+	padding-right: 1em;
+}
+
+label,
+input {
+	display: flex;
+	flex-direction: column;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+	/* display: none; <- Crashes Chrome on hover */
+	-webkit-appearance: none;
+	margin: 0;
+	/* <-- Apparently some margin are still there even though it's hidden */
+}
+
+input[type=number] {
+	-moz-appearance: textfield;
+	appearance: textfield;
+	/* Firefox */
 }
