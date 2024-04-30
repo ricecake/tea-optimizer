@@ -165,8 +165,10 @@ window.onload = async (event) => {
 				break;
 			case 'update_cup':
 				await loadSuggestion();
+				await loadSuggestions();
 				await loadBestGuess();
 				await loadTea();
+				await loadSugarSuggestion();
 				break;
 			case 'add_cup':
 				await loadTea();
