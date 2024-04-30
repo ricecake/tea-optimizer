@@ -1,10 +1,10 @@
 # Tea Optimizer
 
-Have you ever found yourself making vanilla sugar for tea out of basic checmical inputs, and thought to yourself "Gee, I wonder if I'm using enough ethyl vanillin, or too much vanillin"?
+Have you ever found yourself making vanilla sugar for tea out of basic chemical inputs, and thought to yourself "Gee, I wonder if I'm using enough ethyl vanillin, or too much vanillin"?
 
 Me too!
 
-That's why I made this tea optimizer, which uses a bayesian optimizer to extimate the correct ratios of input ingredients while making the sugar, as well as the correct proportion of inputs to use while making the tea.
+That's why I made this tea optimizer, which uses a bayesian optimizer to estimate the correct ratios of input ingredients while making the sugar, as well as the correct proportion of inputs to use while making the tea.
 
 It expects as inputs the blends of different vanilla sugars, the water, sugar blend weight, and almond milk used for brewing the cup.
 Then you can annotate the cup with the entirely subjective unitless quality ranking.
@@ -19,7 +19,7 @@ Yes it is, but I had the data, so I had to do it.
 ![image](https://github.com/ricecake/tea-optimizer/assets/2078127/594118ac-9fb8-492a-b38f-9867dfe57865)
 
 ### Dear lord that's hideous
-That's not question, but it's also true.   
+That's not a question, but it's also true.   
 I was not interested in making it pretty, but if you have suggestions, feel free.  :) 
 
 ### Can it support other things?
