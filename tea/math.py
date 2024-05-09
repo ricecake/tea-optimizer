@@ -38,3 +38,6 @@ def sigmoid_curve(point, middle=15, max_val=10, min_val=0.1, scale=10):
     return ((max_val-min_val)*logistic.sf(point, loc=middle, scale=scale))+min_val
 #[[tea.math.sigmoid_curve(x, scale=y) for x in range(0, 20)] for y in range(1,30)] 
 # This needs to be a bit more smooth
+# I think that loc needs to increase by some value proportional to scale.
+# need to do some experimentation to properly make it so point zero is roughly max val, and point 2*middle is roughly min val
+# and we ramp down over roughly the middle third.
