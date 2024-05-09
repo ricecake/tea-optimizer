@@ -8,7 +8,16 @@ from bayes_opt import UtilityFunction
 from scipy.optimize import NonlinearConstraint
 import numpy as np
 
-utility = UtilityFunction(kind="ucb", kappa=10, xi=0.0)
+# This needs to shift more towards exploitation as more cups are added.
+# It should be moved into the get_optimizer() function, and use a sigmoid
+# curve to transition between the exploration and exploitation values.
+# as part of the suggestion table, it should track the value of kappa, 
+# maybe with a name that represents what it does rather than the term itself.
+# Maybe call it "exploration factor"?
+# It ***Definitely*** needs to be very conservative when making the sugar blend,
+# so it should be able to be overwritten or specified to be very conservative 
+# or very explorative
+utility = UtilityFunction(kind="ucb", kappa=0.1, xi=0.0)
 
 Action = enum.Enum('Action', [
     'set_sugar',

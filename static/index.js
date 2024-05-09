@@ -7,6 +7,7 @@ const formToJson = (formElement) => {
 			continue;
 		}
 		jsonObject[inputElement.name] = inputElement.value;
+		inputElement.value = '';
 
 	}
 	return JSON.stringify(jsonObject);
