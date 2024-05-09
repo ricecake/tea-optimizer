@@ -1,17 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from math import dist, sqrt
-from typing import List
-from typing import Optional
+from math import dist
 from sqlalchemy import ForeignKey, func
-from sqlalchemy import String, DateTime
+from sqlalchemy import DateTime
+from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
-from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker, declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.schema import UniqueConstraint
 
 import tea.math

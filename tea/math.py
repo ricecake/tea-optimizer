@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import logistic 
 
 
 def find_closest_point_on_line(line_point_1: np.array, line_point_2: np.array, point: np.array) -> np.array:
@@ -29,6 +30,11 @@ def find_closest_point_on_line(line_point_1: np.array, line_point_2: np.array, p
     return closest_point
 
 def scale_to_target_weight(blend_dict, weight):
-        gross_weight = sum(blend_dict.values())
-        factor = weight/gross_weight
-        return { field: value * factor for field, value in blend_dict.items() }
+    gross_weight = sum(blend_dict.values())
+    factor = weight/gross_weight
+    return { field: value * factor for field, value in blend_dict.items() }
+
+def sigmoid_curve(point, middle=15, max_val=10, min_val=0.1, scale=10):
+    return ((max_val-min_val)*logistic.sf(point, loc=middle, scale=scale))+min_val
+#[[tea.math.sigmoid_curve(x, scale=y) for x in range(0, 20)] for y in range(1,30)] 
+# This needs to be a bit more smooth

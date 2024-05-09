@@ -1,5 +1,7 @@
 import enum
 from tea.db import db_session, SugarBlend, TeaServing, TrialSuggestion
+import tea.math
+
 from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert
 
@@ -7,17 +9,6 @@ from bayes_opt import BayesianOptimization
 from bayes_opt import UtilityFunction
 from scipy.optimize import NonlinearConstraint
 import numpy as np
-
-# This needs to shift more towards exploitation as more cups are added.
-# It should be moved into the get_optimizer() function, and use a sigmoid
-# curve to transition between the exploration and exploitation values.
-# as part of the suggestion table, it should track the value of kappa, 
-# maybe with a name that represents what it does rather than the term itself.
-# Maybe call it "exploration factor"?
-# It ***Definitely*** needs to be very conservative when making the sugar blend,
-# so it should be able to be overwritten or specified to be very conservative 
-# or very explorative
-utility = UtilityFunction(kind="ucb", kappa=0.1, xi=0.0)
 
 Action = enum.Enum('Action', [
     'set_sugar',
@@ -31,31 +22,35 @@ Action = enum.Enum('Action', [
     'get_sugar_suggestion',
 ])
 
+Strategy = enum.Enum('Strategy', [
+    'Explorative', # kappa 10
+    'Bold', # kappa 5
+    'Neutral', #kappa 2.5
+    'Timid', # kappa 1
+    'Certain', #kappa 0.1
+    'Contextual', # Vary kappa by number of previous trials
+])
 
 def dispatch_action(action, data=None) -> dict:
     result = None
-    match action:
-        case Action.set_sugar:
-            result = do_set_sugar(data)
-        case Action.get_sugar:
-            result = do_get_sugar(data)
-        case Action.add_cup:
-            result = do_add_cup(data)
-        case Action.get_suggestion:
-            result = do_get_suggestion(data)
-        case Action.list_cups:
-            result = do_list_cups(data)
-        case Action.update_cup:
-            result = do_update_cup(data)
-        case Action.get_best_guess:
-            result = do_get_best_guess(data)
-        case Action.list_suggestions:
-            result = do_list_suggestions(data)
-        case Action.get_sugar_suggestion:
-            result = do_get_sugar_suggestion(data)
+
+    ACTION_EXECUTOR = {
+        Action.set_sugar: do_set_sugar,
+        Action.get_sugar: do_get_sugar,
+        Action.add_cup: do_add_cup,
+        Action.get_suggestion: do_get_suggestion,
+        Action.list_cups: do_list_cups,
+        Action.update_cup: do_update_cup,
+        Action.get_best_guess: do_get_best_guess,
+        Action.list_suggestions: do_list_suggestions,
+        Action.get_sugar_suggestion: do_get_sugar_suggestion,
+    }
+
+    executor = ACTION_EXECUTOR.get(action)
+    if executor:
+        result = executor(data)
 
     return dict(result=result)
-
 
 def do_set_sugar(data) -> SugarBlend:
     with db_session() as session:
@@ -110,7 +105,7 @@ def do_get_best_guess(data) -> dict:
         if not blend:
             return
 
-        optimizer = get_optimizer(session, blend)
+        optimizer, _ = get_optimizer(session, blend)
 
         max = optimizer.max
 
@@ -131,7 +126,7 @@ def do_get_suggestion(data) -> dict:
         if not blend:
             return
 
-        optimizer = get_optimizer(session, blend)
+        optimizer, utility = get_optimizer(session, blend)
 
         mixture = optimizer.suggest(utility)
         suggestion = project_mixture_to_blend(mixture, blend)
@@ -148,7 +143,7 @@ def do_get_suggestion(data) -> dict:
 
 def do_get_sugar_suggestion(data):
     with db_session() as session:
-        optimizer = get_optimizer(session)
+        optimizer, utility = get_optimizer(session, strategy=Strategy.Certain)
 
         mixture = optimizer.suggest(utility)
         blend = blend_from_mixture(mixture)
@@ -162,7 +157,7 @@ def do_list_suggestions(data) -> dict:
         return session.scalars(stmnt).all()
 
 
-def get_optimizer(session, blend: SugarBlend = None) -> BayesianOptimization:
+def get_optimizer(session, blend: SugarBlend = None, strategy: Strategy = Strategy.Contextual) -> tuple[BayesianOptimization, UtilityFunction]:
     def constraint_func(**kwargs):
         desired_blend = blend_from_mixture(kwargs)
         closest_blend = blend.nearest_blend(desired_blend)
@@ -189,7 +184,8 @@ def get_optimizer(session, blend: SugarBlend = None) -> BayesianOptimization:
     )
 
     stmnt = select(TeaServing).where(TeaServing.quality != None)
-    for cup in session.scalars(stmnt):
+    cups = session.scalars(stmnt).all()
+    for cup in cups:
         get_brew_blend = select(SugarBlend).limit(
             1).order_by(SugarBlend.created_at.desc())
         brew_blend = session.scalar(get_brew_blend)
@@ -214,7 +210,9 @@ def get_optimizer(session, blend: SugarBlend = None) -> BayesianOptimization:
             constraint_value=constraint_value,
         )
 
-    return optimizer
+    utility = get_utility_function(strategy, len(cups))
+
+    return optimizer, utility
 
 
 def blend_from_mixture(mixture) -> SugarBlend:
@@ -233,3 +231,36 @@ def project_mixture_to_blend(mixture: dict, blend: SugarBlend) -> dict:
         almond_milk=mixture["almond_milk"],
         sugar=closest_blend.gross_weight,
     )
+
+def get_utility_function(strategy: Strategy, cups: int) -> UtilityFunction:
+# This needs to shift more towards exploitation as more cups are added.
+# It should be moved into the get_optimizer() function, and use a sigmoid
+# curve to transition between the exploration and exploitation values.
+# as part of the suggestion table, it should track the value of kappa, 
+# maybe with a name that represents what it does rather than the term itself.
+# Maybe call it "exploration factor"?
+# It ***Definitely*** needs to be very conservative when making the sugar blend,
+# so it should be able to be overwritten or specified to be very conservative 
+# or very explorative
+    parameters = {
+        Strategy.Explorative: { 'kappa': 10, 'xi': 0.0, 'kind': 'ucb' },
+        Strategy.Bold: { 'kappa': 5, 'xi': 0.0, 'kind': 'ucb' },
+        Strategy.Neutral: { 'kappa': 2.5, 'xi': 0.0, 'kind': 'ucb' },
+        Strategy.Timid: { 'kappa': 1, 'xi': 0.0, 'kind': 'ucb' },
+        Strategy.Certain: { 'kappa': 0.1, 'xi': 0.0, 'kind': 'ucb' },
+        Strategy.Contextual: {
+            'xi': 0.0,
+            'kind': 'ucb',
+            'kappa': tea.math.sigmoid_curve(
+                cups,
+                max_val=10,
+                min_val=0.01,
+                middle=15
+            ),
+        },
+    }
+    utility_params = parameters[strategy]
+
+    print(f'Kappa: {utility_params.get("kappa")}')
+
+    return UtilityFunction(**utility_params)
